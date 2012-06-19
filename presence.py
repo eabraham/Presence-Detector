@@ -9,13 +9,12 @@ def application(request):
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
-
-    key = paramiko.RSAKey(data=base64.decodestring('AAAAB3NzaC1yc2EAAAADAQABAAAAgwCjvHkbqL/V0ytnfa5pIak7bxBfj6nF4S7vy51ZG8LlWYAXcQ9WGfUGfhG+l1GW9hPeQzQbeRyNiQM+ufue/M9+JKCXTIugksAnN3W+NV/DeDcq9sKR9MiiNH3ZeNtGSyPGYjcLVmK6aSVTUoEO2yRrha9fiWBy5hb93UdmJX+QguC9'))
-    client = paramiko.SSHClient()
-    client.get_host_keys().add('[makerbar.berthartm.org]:2222', 'ssh-rsa', key)
-    wlauthkey = paramiko.RSAKey.from_private_key_file(os.path.expanduser('~/presence2/keys/wlauth'))
-    client.connect('makerbar.berthartm.org', username='root', port=2222, pkey=wlauthkey)
-    stdin, stdout, stderr = client.exec_command('wl assoclist')
+    
+    rsa_key='AAAAB3NzaC1yc2EAAAADAQABAAAAgwCjvHkbqL/V0ytnfa5pIak7bxBfj6nF4S7vy51ZG8LlWYAXcQ9WGfUGfhG+l1GW9hPeQzQbeRyNiQM+ufue/M9+JKCXTIugksAnN3W+NV/DeDcq9sKR9MiiNH3ZeNtGSyPGYjcLVmK6aSVTUoEO2yRrha9fiWBy5hb93UdmJX+QguC9'
+    router_address='makerbar.berthartm.org'
+    router_port = 2222
+    stdin, stdout, stderr =get_router_mac_addresses(rsa_key,router_address,router_port)
+    
     usermap = get_dict()
     attendance = set()
     for line in stdout:
@@ -39,6 +38,15 @@ def get_dict():
     with open(os.path.expanduser('~/presence/macs.pckl')) as f:
         d = pickle.load(f)
     return d
+
+def get_router_mac_addresses():
+    key = paramiko.RSAKey(data=base64.decodestring(rsa_key))
+    client = paramiko.SSHClient()
+    client.get_host_keys().add('['+router_address+']:'+router_port, 'ssh-rsa', key)
+    wlauthkey = paramiko.RSAKey.from_private_key_file(os.path.expanduser('~/presence2/keys/wlauth'))
+    client.connect(router_address, username='root', port=router_port, pkey=wlauthkey)
+    return client.exec_command('wl assoclist')
+
 
 if __name__ == '__main__':
    from werkzeug.serving import run_simple
