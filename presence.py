@@ -5,16 +5,16 @@ import paramiko, base64, pickle, os, logging
 def application(request):
     logger = logging.getLogger('presence_detection')
     logger.setLevel(logging.info)
-    fh = logging.FileHandler('~/presence2/log/presence_detection.log')
+    fh = logging.FileHandler(os.path.expanduser('~/presence2/log/presence_detection.log'),mode='a', encoding=None, delay=False)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
-    
+
     rsa_key='AAAAB3NzaC1yc2EAAAADAQABAAAAgwCjvHkbqL/V0ytnfa5pIak7bxBfj6nF4S7vy51ZG8LlWYAXcQ9WGfUGfhG+l1GW9hPeQzQbeRyNiQM+ufue/M9+JKCXTIugksAnN3W+NV/DeDcq9sKR9MiiNH3ZeNtGSyPGYjcLVmK6aSVTUoEO2yRrha9fiWBy5hb93UdmJX+QguC9'
     router_address='makerbar.berthartm.org'
     router_port = 2222
     stdin, stdout, stderr =get_router_mac_addresses(rsa_key,router_address,router_port)
-    
+
     usermap = get_dict()
     attendance = set()
     for line in stdout:
@@ -23,7 +23,7 @@ def application(request):
             attendance.add(usermap[MAC])
             logger.info(usermap[MAC]+'('+MAC+') is at the MakerBar.')
         else:
-            logger.info('Unknown user('+MAC+') is at the MakerBar.')	    
+            logger.info('Unknown user('+MAC+') is at the MakerBar.')
 
     output = ''
     for user in attendance:
@@ -32,6 +32,7 @@ def application(request):
     if output == '':
         response.status_code = 204 # No content
     client.close()
+    fh.close()
     return response
 
 def get_dict():
@@ -39,7 +40,7 @@ def get_dict():
         d = pickle.load(f)
     return d
 
-def get_router_mac_addresses():
+def get_router_mac_addresses(rsa_key,router_address,router_port):
     key = paramiko.RSAKey(data=base64.decodestring(rsa_key))
     client = paramiko.SSHClient()
     client.get_host_keys().add('['+router_address+']:'+router_port, 'ssh-rsa', key)
