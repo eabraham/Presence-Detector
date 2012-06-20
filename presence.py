@@ -4,9 +4,9 @@ import paramiko, base64, pickle, os, logging
 @Request.application
 def application(request):
     logger = logging.getLogger('presence_detection')
-    logger.setLevel(logging.info)
+    logger.setLevel(logging.INFO)
     fh = logging.FileHandler(os.path.expanduser('~/presence2/log/presence_detection.log'),mode='a', encoding=None, delay=False)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)r - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
@@ -21,9 +21,9 @@ def application(request):
         MAC = line[10:27]
         if MAC in usermap:
             attendance.add(usermap[MAC])
-            logger.info(usermap[MAC]+'('+MAC+') is at the MakerBar.')
+            logger.info('%s (%s) is at the MakerBar.' % (usermap[MAC],MAC))
         else:
-            logger.info('Unknown user('+MAC+') is at the MakerBar.')
+            logger.info('Unknown user(%s) is at the MakerBar.' % MAC)
 
     output = ''
     for user in attendance:
@@ -31,7 +31,7 @@ def application(request):
     response = Response(output)
     if output == '':
         response.status_code = 204 # No content
-    client.close()
+
     fh.close()
     return response
 
@@ -43,10 +43,12 @@ def get_dict():
 def get_router_mac_addresses(rsa_key,router_address,router_port):
     key = paramiko.RSAKey(data=base64.decodestring(rsa_key))
     client = paramiko.SSHClient()
-    client.get_host_keys().add('['+router_address+']:'+router_port, 'ssh-rsa', key)
+    client.get_host_keys().add('[%s]:%d' % (router_address,router_port), 'ssh-rsa', key)
     wlauthkey = paramiko.RSAKey.from_private_key_file(os.path.expanduser('~/presence2/keys/wlauth'))
     client.connect(router_address, username='root', port=router_port, pkey=wlauthkey)
-    return client.exec_command('wl assoclist')
+    stdin, stdout, stderr = client.exec_command('wl assoclist')
+    client.close()
+    return stdin, stdout, stderr
 
 
 if __name__ == '__main__':
